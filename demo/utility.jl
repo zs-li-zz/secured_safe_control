@@ -26,7 +26,7 @@ function preprocess(A_in, B_in, C_in, Q_in, R_in, Σ_in, MAX_TIME_IN=1000)
     #     n_u = n
     # end
     global Π, S = get_Mtildeinv()
-    return Λ, K, C, T
+    return Λ, T*K, C, T
 end
 
 
@@ -61,10 +61,10 @@ function pre_transform(A, B, C)
     # # Λ = Diagonal(λ)
     # T = T*inv(E_row)
     # write over original
-    T=[0.250000000000000	0.250000000000000	-0.0296892518053057	-0.500000000000000
--0.857321409974113	0.857321409974112	0	-0.296892518053057
-0.500000000000000	0.500000000000000	0	0
--1.71464281994823	1.71464281994823	0	0]
+    T=[0.0498055805186480	0.500000000000000	-0.250000000000000	-0.250000000000000
+0	0.498055805186480	1.10679718105893	-1.10679718105893
+0	0	0.500000000000000	0.500000000000000
+0	0	-2.21359436211787	2.21359436211787]
     Λ = T^(-1)*A*T
     C = C*T
     B = T^(-1)*B
@@ -241,7 +241,7 @@ global Πt=kron(Matrix(1.0I,m,m), Π)
 global Wt = sylvester(-inv(Πt), Matrix(Πt'), inv(Πt)*Qt)
 # Wt=(Wt+Wt')/2
 # @show Wt
-global n#r=rank(Wt, rtol=10^(-20))
+global r=rank(Wt, rtol=10^(-20))
 TW=eigen(Wt).vectors # T*Λ*Tinv=Wt
 L=sqrt(Diagonal(eigen(Wt).values[mn-r+1:end]))
 global D=inv(L)*inv(TW)[mn-r+1:end,:]*inv(Pt)
