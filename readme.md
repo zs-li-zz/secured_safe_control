@@ -1,8 +1,8 @@
 Based on the knowledge of theoretical mechanics, one obtains the inverted pendulum system dynamic:
-$$(M+m)\ddot{x}+b \dot{x} +ml \ddot{\theta} \cos \theta - ml \dot{\theta}^2\sin\theta=F,$$
-$$ml^2 \ddot{\theta} +mgl\sin\theta =ml\ddot{x}\cos\theta.$$
+<!-- $$(M+m)\ddot{x}+b \dot{x} +ml \ddot{\theta} \cos \theta - ml \dot{\theta}^2\sin\theta=F,$$ -->
+<!-- $$ml^2 \ddot{\theta} +mgl\sin\theta =ml\ddot{x}\cos\theta.$$ -->
 Rewrite it as a non-linear state space model :
-$$
+<!-- $$
 \left[\begin{array}{cccc}
 	1 & 0 & 0 & 0 \\
 	0 & m+M & 0 & m l \cos \theta \\
@@ -24,7 +24,7 @@ $$
 	0 \\
 	0
 \end{array}\right] F.
-$$
+$$ -->
 Reformulate the system as $\dot{x}=f(x)+g(x)u$ and linearize system at $\theta=0,\dot{\theta}=0$.
 Then for continuous time $\dot{x}(t)=A_c x(t) +B_c u(t)$
 $$A_c=\partial f(x)/ \partial x |_{x_3=x_4=0} =
