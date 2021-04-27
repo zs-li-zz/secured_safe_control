@@ -1,5 +1,10 @@
 using LinearAlgebra, GaussianDistributions, Random
-using Convex, SCS, Plots, DifferentialEquations
+using Plots, DifferentialEquations, PyCall
+
+ENV["PYTHON"]="/home/zs/miniconda3/bin/python" # your python exectuable file path
+qpsolvers = pyimport("qpsolvers")
+np = pyimport("numpy")
+
 ## PARAMETERS
 # [-3.28001894978812	-3.56225366617832	22.2826696463037	7.71624059731720]
 K_gain = [0.447213595500539, 3.10711058638360, 128.125101649409, 127.003953329490] .* [10, 7, 1.5, 1.25]
@@ -13,11 +18,6 @@ m = 0.1
 l = 5
 bx = 0.05
 bt = 0.1
-
-L=35
-q=5
-
-X0=[10, -10, 0, 0]
 
 
 barrWeights = [3, 5, 3, 5]
@@ -71,24 +71,16 @@ h(X) = (1 - (X[1]/x_barr)^2)*barrWeights[1] + (1 - (X[2]/v_barr)^2)*barrWeights[
 
 
 function CBFControl(X)
-    qp_P = 1 + epsilon
-    ## BEGIN solving QP
-    u = Convex.Variable(1)
-    problem = minimize( qp_P/2*square(u) + -K_gain'*X*u, (-Lg_h(X)-epsilon)*u<=Lf_h(X)+gamma*h(X) - zeta*Lg_h(X)*Lg_h(X)'-epsilon )
-    Convex.solve!(problem, SCS.Optimizer(verbose=0), warmstart=true) # max_iters=50000,
-    # println("problem status: ", problem.status) # :Optimal, :Infeasible, :unbounded etc.
-    # println("opt value:", problem.optval, " | solution value:", u.value)
+    qp_P = np.array([1 + epsilon])
+    qp_q = np.array([-K_gain'*X])
+    qp_h = np.array([Lf_h(X)+gamma*h(X)-epsilon-zeta*Lg_h(X)*Lg_h(X)])
+    qp_G = np.array([-Lg_h(X)-epsilon])
+    ## using CVXOPT
+    qp_result = qpsolvers.cvxopt_solve_qp(qp_P,qp_q,qp_G,qp_h)
+    # print("\nqp_P, qp_q, qp_G, qp_h", qp_P, qp_q, qp_G, qp_h)
+    # print("\nqp_result: ", qp_result)
 
-    # if u.value>3
-    #     println(3)
-    #     return 3
-    # elseif u.value<-3
-    #     println(-3)
-    #     return -3
-    # else
-    println(u.value)
-    return u.value
-    # end
+    return qp_result
 end
 
 function func(X, t, q)
@@ -101,9 +93,9 @@ function func(X, t, q)
     return X_dot
 end
 
-function pen_dynamic(X, p, t)
+function invpen_dynamic(X, p, t)
     U = CBFControl(X)
-    X_dot = fs(X)+gs(X)*U
+    X_dot = fs(X)+gs(X).*U
     return X_dot
 end
 
@@ -119,26 +111,26 @@ Q=Ts*0.0001*Matrix(1.0I,n,n)#+0.01*rand(n,n)
 R= Ts*0.001*Matrix(1.0I,m,m)#+0.01*rand(m,m)
 
 ## get data
-MAX_TIME = 1000
+MAX_TIME = 500
 
 w=zeros(n,MAX_TIME)
 v=zeros(m,MAX_TIME)
 
 X=zeros(n,MAX_TIME)
 Y=zeros(m,MAX_TIME)
-x0=[ 0 ; 0 ; 0 ; 0 ] # initial state
+x0=[ 0 ; 11.856 ; 0 ; 0 ] # initial state
 
 for k=1:MAX_TIME
     # original data
     w[:,k]=rand(Gaussian(zeros(n),Q)) # (第一个w没用到)
     v[:,k]=rand(Gaussian(zeros(m),R))
     if k==1
-        prob = ODEProblem(pen_dynamic,x0,(Ts*(k-1),Ts*k))
+        prob = ODEProblem(invpen_dynamic,x0,(Ts*(k-1),Ts*k))
         sol = solve(prob,Tsit5(),reltol=1e-8,save_everystep=false, verbose =0 )# ,progress = true,verbose=false
         @show sol
         X[:,k]=sol.u[2]
     else
-        prob = ODEProblem(pen_dynamic,X[:,k-1],(Ts*(k-1),Ts*k))
+        prob = ODEProblem(invpen_dynamic,X[:,k-1],(Ts*(k-1),Ts*k))
         sol = solve(prob,Tsit5(),reltol=1e-8,save_everystep=false) # ,progress = true,verbose=false
         @show sol
         X[:,k]=sol.u[2]
@@ -155,8 +147,12 @@ end
 
 
 
-time_axis=[0:MAX_TIME-1].*0.1
+time_axis=[0:MAX_TIME-1].*0.02
 plot(time_axis, X[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
 plot!(time_axis, X[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
 plot!(time_axis, X[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
 plot!(time_axis, X[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
+
+h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).^2) * barrWeights[2] + (
+            1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
+plot(time_axis,h_test)
