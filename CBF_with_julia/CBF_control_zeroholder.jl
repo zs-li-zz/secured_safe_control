@@ -83,21 +83,21 @@ function CBFControl(X)
     return qp_result
 end
 
-function func(X, t, q)
-    X_dot = zeros(8)
-    i = int(t/Ts)
-    U = CBFControl(X[5:end])
-    X_dot[1:4] = fs(X[1:4])+gs(X[1:4])*U
-    X_dot[5:end] = f_est( X[5:end], f_out(X[1:4]) +  0.01*q*v[i]*U )
-    #U = K(X + 30*noise[i]*np.array([1, 1, 1, 1]))
-    return X_dot
-end
-
-function invpen_dynamic(X, p, t)
-    U = CBFControl(X)
-    X_dot = fs(X)+gs(X).*U
-    return X_dot
-end
+# function func(X, t, q)
+#     X_dot = zeros(8)
+#     i = int(t/Ts)
+#     U = CBFControl(X[5:end])
+#     X_dot[1:4] = fs(X[1:4])+gs(X[1:4])*U
+#     X_dot[5:end] = f_est( X[5:end], f_out(X[1:4]) +  0.01*q*v[i]*U )
+#     #U = K(X + 30*noise[i]*np.array([1, 1, 1, 1]))
+#     return X_dot
+# end
+#
+# function invpen_dynamic(X, p, t)
+#     U = CBFControl(X)
+#     X_dot = fs(X)+gs(X).*U
+#     return X_dot
+# end
 
 ## begin running simulation
 C =  [1 0 0 0
@@ -105,8 +105,8 @@ C =  [1 0 0 0
 n=4
 m=size(C,1)
 Ts=0.02
-Q=Ts*0.0001*Matrix(1.0I,n,n)#+0.01*rand(n,n)
-R= Ts*0.001*Matrix(1.0I,m,m)#+0.01*rand(m,m)
+# Q=Ts*0.0001*Matrix(1.0I,n,n)#+0.01*rand(n,n)
+R= 1*Matrix(1.0I,m,m)#+0.01*rand(m,m)
 
 ## Calculate discrete system Matrix
 A_dis=exp(Ts*A_lin)
@@ -121,7 +121,7 @@ L=[1.7 0.1
 0.0148 2.4454]
 
 ## get data
-MAX_TIME = 500
+MAX_TIME = 1000
 
 w=zeros(n,MAX_TIME)
 v=zeros(m,MAX_TIME)
@@ -137,7 +137,7 @@ U[1]= CBFControl(X_est[:,1])[1]
 
 for k=2:MAX_TIME
     # original data
-    w[:,k]=Ts*rand(Gaussian(zeros(n),Q)) # (第一个w没用到)
+    # w[:,k]=Ts*rand(Gaussian(zeros(n),Q)) # (第一个w没用到)
     v[:,k]=Ts*rand(Gaussian(zeros(m),R))
     X[:,k]=A_dis*X[:,k-1]+B_dis*U[k-1] # now without noise w
     Y[:,k]=C*X[:,k]+v[:,k]
@@ -164,11 +164,17 @@ end
 
 
 time_axis=[0:MAX_TIME-1].*Ts
+plot(time_axis, X[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
+plot!(time_axis, X[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
+plot!(time_axis, X[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
+plot!(time_axis, X[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
+
 plot(time_axis, X[1,:]-X_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
 plot!(time_axis, X[2,:]-X_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
 plot!(time_axis, X[3,:]-X_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
 plot!(time_axis, X[4,:]-X_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
 
-# h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).^2) * barrWeights[2] + (
-#             1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
-# plot(time_axis,h_test)
+
+h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).^2) * barrWeights[2] + (
+            1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
+plot(time_axis,h_test)
