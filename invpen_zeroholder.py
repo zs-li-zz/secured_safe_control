@@ -44,6 +44,7 @@ flag = 0
 
 fps = 60
 N = 5000
+Ts = 1/500.0
 
 g = 9.8
 M = 1
@@ -129,11 +130,19 @@ B_lin = gs(np.zeros(4))
 C = np.array([[1, 0, 0, 0],
               [0, 0, 1, 0]])
 
+A_dis = linalg.expm(Ts*A_lin)
+int_expAT = np.zeros([4,4])
+for i in range(4):
+    for j in range(4):
+        expAT = lambda X, t: linalg.expm(t * A_lin)[i, j]
+        int_expAT[i,j] = integrate.odeint(expAT, 0, [0, Ts], rtol=1e-20)[1]
+B_dis = np.matmul(int_expAT, B_lin)
+
 # L = ct.lqr(A_lin.T, C.T, np.eye(4), np.eye(2))[0].T
 
 # L = signal.place_poles(A_lin.T, C.T, np.array([-0.8972354 +0.54904994j, -0.8972354 -0.54904994j, -1.16923758, -1.99765673])).gain_matrix.T
 
-L = signal.place_poles(A_lin.T, C.T, np.array([-1.25, -0.85, -0.85, -1.25])).gain_matrix.T
+L = signal.place_poles(A_lin.T, C.T, np.array([-1.25, -0.5, -0.5, -1.25])).gain_matrix.T
 
 fs_lin = lambda X: np.matmul(A_lin, X)
 
@@ -204,36 +213,25 @@ def func(X, t, q):
 
 
 Q = 50
-N = 5000
-Ts = 1 / 500
 t_list = np.arange(N) * Ts
 
 e = np.zeros([N, 4])
 
 U = np.zeros([N])
-
-A_dis = linalg.expm(Ts*A_lin)
-int_expAT = np.zeros([4,4])
-for i in range(4):
-    for j in range(4):
-        expAT = lambda X, t: linalg.expm(t * A_lin)[i, j]
-        int_expAT[i,j] = integrate.odeint(expAT, 0, [0, Ts], rtol=1e-20)[1]
-B_dis = np.matmul(int_expAT, B_lin)
-
-
 X = np.zeros([N, 4])
 Y = np.zeros([N, 2])
 X_est = np.zeros([N, 4])
 X[0, :] = initial
-Y[0, :] = f_out(X[0, :]) + Ts * q * noise[0] * np.array([1, 1]) # add output noise
-U[0] = CBFControl(X[0, :])
+Y[0, :] = f_out(X[0, :]) + 0.01 * Ts * q * noise[0] * np.array([1, 1]) # add output noise
+U[0] = CBFControl(X_est[0, :])
 #X_est at time 0 is zero
 for i in range(1,N):
       # calculate control with states at last time step
     X[i, :] = np.matmul(A_dis, X[i-1, :]) + B_dis * U[i-1]
-    Y[i, :] = f_out(X[i, :]) + Ts * q * noise[i] * np.array([1, 1]) # add output noise
-    X_est[i, :] = f_est(X[i - 1, :], Y[i, :], U[i-1])
-    U[i] = CBFControl(X[i, :])
+    Y[i, :] = f_out(X[i, :]) + 0.01 * Ts * q * noise[i] * np.array([1, 1]) # add output noise
+    X_est[i, :] = f_est(X_est[i - 1, :], Y[i, :], U[i-1])
+    U[i] = CBFControl(X_est[i, :])
+    # U[i] = np.clip(CBFControl(X_est[i, :]), -100, 100)
     print("step num: ", i)
     print("X_RESULT: ", X[i, :])
 
