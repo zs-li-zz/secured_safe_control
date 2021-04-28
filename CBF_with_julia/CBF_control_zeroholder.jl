@@ -1,5 +1,6 @@
 using LinearAlgebra, GaussianDistributions, Random
 using Plots, DifferentialEquations, PyCall
+include("utility.jl")
 
 ENV["PYTHON"]="/home/zs/miniconda3/bin/python" # your python exectuable file path
 qpsolvers = pyimport("qpsolvers")
@@ -100,13 +101,16 @@ end
 # end
 
 ## begin running simulation
+N = 100
+Ts=1/50.0
+
 C =  [1 0 0 0
       0 0 1 0]
 n=4
 m=size(C,1)
-Ts=0.02
-# Q=Ts*0.0001*Matrix(1.0I,n,n)#+0.01*rand(n,n)
-R= 1*Matrix(1.0I,m,m)#+0.01*rand(m,m)
+
+Q = 0.0001*Matrix(1.0I,n,n)#+0.01*rand(n,n)
+R = 5*Matrix(1.0I,m,m)#+0.01*rand(m,m)
 
 ## Calculate discrete system Matrix
 A_dis=exp(Ts*A_lin)
@@ -120,28 +124,41 @@ L=[1.7 0.1
 0.01 1.53
 0.0148 2.4454]
 
+## preprocess for secure estimator
+Λ_, K_, C_, T_ = preprocess(A_dis, B_dis, C, Q, Ts^2*R, Q)
+ζ=complex(zeros(m*n,N))
+
 ## get data
-MAX_TIME = 1000
+w=zeros(n,N)
+v=zeros(m,N)
 
-w=zeros(n,MAX_TIME)
-v=zeros(m,MAX_TIME)
-
-X=zeros(n,MAX_TIME)
-Y=zeros(m,MAX_TIME)
-X_est=zeros(n,MAX_TIME)
-U=zeros(MAX_TIME)
+X=zeros(n,N)
+Y=zeros(m,N)
+X_est=zeros(n,N)
+Xs_est=zeros(n,N)
+U=zeros(N)
 # initialization
 X[:,1]=[ 0 ; 11.856 ; 0 ; 0 ]
-Y[:,1]=C*X[:,1]+Ts*rand(Gaussian(zeros(m),R))
+Y[:,1]=C*X[:,1]+rand(Gaussian(zeros(m),R))
 U[1]= CBFControl(X_est[:,1])[1]
 
-for k=2:MAX_TIME
+@time for k=2:N
+    println("\n========================================================= time step = ", k)
     # original data
     # w[:,k]=Ts*rand(Gaussian(zeros(n),Q)) # (第一个w没用到)
     v[:,k]=Ts*rand(Gaussian(zeros(m),R))
     X[:,k]=A_dis*X[:,k-1]+B_dis*U[k-1] # now without noise w
     Y[:,k]=C*X[:,k]+v[:,k]
-    X_est[:,k]=A_dis*X_est[:,k-1]+B_dis*U[k-1]+L*(Y[:,k]-C*X_est[:,k-1])
+    # calculate fix gain estimation
+    X_est[:,k]=A_dis*X_est[:,k-1]+B_dis*U[k-1]+L*(Y[:,k]-C*A_dis*X_est[:,k-1])
+    # calculate secure estimation
+    ζ[:,k]=update_ζ( ζ[:,k-1], Y[:,k], B_dis, U[k-1] )
+    γ = 1000
+    println("solving LASSO at k = ", k)
+    x, μ, ν = solve_opt(ζ[:,k], γ, 0)
+    Xs_est[:,k] = T_*x
+    # update control based on estimation
+    println("solving QP at k = ", k)
     U[k]=CBFControl(X_est[:,k])[1]
 end
 
@@ -163,7 +180,7 @@ end
 #     print("X_RESULT: ", X[i, :])
 
 
-time_axis=[0:MAX_TIME-1].*Ts
+time_axis=[0:N-1].*Ts
 plot(time_axis, X[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
 plot!(time_axis, X[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
 plot!(time_axis, X[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
@@ -174,7 +191,16 @@ plot!(time_axis, X[2,:]-X_est[2,:], label = "velocity", linecolor = "blue", line
 plot!(time_axis, X[3,:]-X_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
 plot!(time_axis, X[4,:]-X_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
 
+plot(time_axis, X[1,:]-Xs_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
+plot!(time_axis, X[2,:]-Xs_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
+plot!(time_axis, X[3,:]-Xs_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
+plot!(time_axis, X[4,:]-Xs_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
 
-h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).^2) * barrWeights[2] + (
-            1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
-plot(time_axis,h_test)
+plot(time_axis, X_est[1,:]-Xs_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
+plot!(time_axis, X_est[2,:]-Xs_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
+plot!(time_axis, X_est[3,:]-Xs_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
+plot!(time_axis, X_est[4,:]-Xs_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
+
+# h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).^2) * barrWeights[2] + (
+#             1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
+# plot(time_axis,h_test)
