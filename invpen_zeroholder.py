@@ -43,7 +43,7 @@ zeta = 40
 flag = 0
 
 fps = 60
-N = 1000
+N = 5000
 
 g = 9.8
 M = 1
@@ -154,7 +154,7 @@ Lg_h = lambda X: np.matmul(h_grad(X).T, gs(X))
 
 f_out = lambda X: np.matmul(C, X)
 
-f_est = lambda X_hat, Y, U: np.matmul(A_lin, X_hat) + B_lin * U + np.matmul(L, (Y - np.matmul(C, X_hat)))
+f_est = lambda X_hat, Y, U: np.matmul(A_dis, X_hat) + B_dis * U + np.matmul(L, (Y - np.matmul(C, X_hat)))
 
 
 def CBFControl(X):
@@ -204,11 +204,11 @@ def func(X, t, q):
 
 
 Q = 50
-N = 500
-Ts = 1 / 50
+N = 5000
+Ts = 1 / 500
 t_list = np.arange(N) * Ts
 
-e = np.zeros([N, 4, Q])
+e = np.zeros([N, 4])
 
 U = np.zeros([N])
 
@@ -222,11 +222,29 @@ B_dis = np.matmul(int_expAT, B_lin)
 
 
 X = np.zeros([N, 4])
+Y = np.zeros([N, 2])
+X_est = np.zeros([N, 4])
 X[0, :] = initial
-for i in range(N-1):
-    U[i] = CBFControl(X[i, :]) # calculate control with states at last time step
-    X[i+1, :] = np.matmul(A_dis, X[i, :]) + B_dis*U[i]
+Y[0, :] = f_out(X[0, :]) + 0.01 * q * noise[0] * np.array([1, 1]) # add output noise
+U[0] = CBFControl(X[0, :])
+#X_est at time 0 is zero
+for i in range(1,N):
+      # calculate control with states at last time step
+    X[i, :] = np.matmul(A_dis, X[i-1, :]) + B_dis * U[i-1]
+    Y[i, :] = f_out(X[i, :]) + Ts * 0.01 * q * noise[i] * np.array([1, 1]) # add output noise
+    X_est[i, :] = f_est(X[i - 1, :], Y[i, :], U[i-1])
+    U[i] = CBFControl(X[i, :])
+    print("step num: ", i)
     print("X_RESULT: ", X[i, :])
+
+e = X - X_est
+## ORIGINAL CODE
+# X = np.zeros([N, 4])
+# X[0, :] = initial
+# for i in range(N-1):
+#     U[i] = CBFControl(X[i, :]) # calculate control with states at last time step
+#     X[i+1, :] = np.matmul(A_dis, X[i, :]) + B_dis*U[i]
+#     print("X_RESULT: ", X[i, :])
 
 
 # for q in range(Q):
@@ -256,21 +274,21 @@ plt.plot(t_list, X)
 plt.xlabel('time in seconds')
 plt.title('Actual system states')
 plt.grid()
-plt.subplot(212)
-plt.plot(t_list, U)
-plt.xlabel('time in seconds')
-plt.title('Control Input')
-plt.grid()
-
 # plt.subplot(212)
-#
-# plt.plot(t_list, X[:, 4:])
-#
+# plt.plot(t_list, U)
 # plt.xlabel('time in seconds')
-#
-# plt.title('Estimated system states')
-#
+# plt.title('Control Input')
 # plt.grid()
+
+plt.subplot(212)
+
+plt.plot(t_list, e)
+plt.ylim([-0.1, 0.1])
+plt.xlabel('time in seconds')
+
+plt.title('Estimated ERROR')
+
+plt.grid()
 
 plt.savefig("states.png")
 
