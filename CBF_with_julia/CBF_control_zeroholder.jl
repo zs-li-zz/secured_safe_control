@@ -101,8 +101,6 @@ end
 
 ## begin running simulation
 C =  [1 0 0 0
-      1 0 0 0
-      0 0 1 0
       0 0 1 0]
 n=4
 m=size(C,1)
@@ -117,6 +115,11 @@ B_dis=[0.02 0.0001999334 -0.0000013570 0.0000001377
 0 0.0000000371 0.0200028716 0.0001997213
 0 0.0000019965 0.0004305862 0.0199589342]*B_lin
 
+L=[1.7 0.1
+0.541 -0.832
+0.01 1.53
+0.0148 2.4454]
+
 ## get data
 MAX_TIME = 500
 
@@ -125,33 +128,47 @@ v=zeros(m,MAX_TIME)
 
 X=zeros(n,MAX_TIME)
 Y=zeros(m,MAX_TIME)
+X_est=zeros(n,MAX_TIME)
 U=zeros(MAX_TIME)
-x0=[ 0 ; 11.856 ; 0 ; 0 ] # initial state
-X[:,1]=x0
+# initialization
+X[:,1]=[ 0 ; 11.856 ; 0 ; 0 ]
+Y[:,1]=C*X[:,1]+Ts*rand(Gaussian(zeros(m),R))
+U[1]= CBFControl(X_est[:,1])[1]
 
-for k=1:MAX_TIME-1
+for k=2:MAX_TIME
     # original data
-    w[:,k]=rand(Gaussian(zeros(n),Q)) # (第一个w没用到)
-    v[:,k]=rand(Gaussian(zeros(m),R))
-    U[k] = CBFControl(X[:,k])[1]
-    X[:,k+1]=A_dis*X[:,k]+B_dis*U[k] # now without noise w
+    w[:,k]=Ts*rand(Gaussian(zeros(n),Q)) # (第一个w没用到)
+    v[:,k]=Ts*rand(Gaussian(zeros(m),R))
+    X[:,k]=A_dis*X[:,k-1]+B_dis*U[k-1] # now without noise w
     Y[:,k]=C*X[:,k]+v[:,k]
+    X_est[:,k]=A_dis*X_est[:,k-1]+B_dis*U[k-1]+L*(Y[:,k]-C*X_est[:,k-1])
+    U[k]=CBFControl(X_est[:,k])[1]
 end
-Y[:,MAX_TIME]=C*X[:,MAX_TIME]+v[:,MAX_TIME]
-# tspan = 0:0.02:10
-# # @show tspan
-# prob = ODEProblem(func,x0,tspan)
-# sol = solve(prob,Tsit5(),reltol=1e-8,save_everystep=false) # ,progress = true,verbose=false
-# @show sol
 
 
+# X = np.zeros([N, 4])
+# Y = np.zeros([N, 2])
+# X_est = np.zeros([N, 4])
+# X[0, :] = initial
+# Y[0, :] = f_out(X[0, :]) + Ts * q * noise[0] * np.array([1, 1]) # add output noise
+# U[0] = CBFControl(X[0, :])
+# #X_est at time 0 is zero
+# for i in range(1,N):
+#       # calculate control with states at last time step
+#     X[i, :] = np.matmul(A_dis, X[i-1, :]) + B_dis * U[i-1]
+#     Y[i, :] = f_out(X[i, :]) + Ts * q * noise[i] * np.array([1, 1]) # add output noise
+#     X_est[i, :] = f_est(X[i - 1, :], Y[i, :], U[i-1])
+#     U[i] = CBFControl(X[i, :])
+#     print("step num: ", i)
+#     print("X_RESULT: ", X[i, :])
 
-time_axis=[0:MAX_TIME-1].*0.02
-plot(time_axis, X[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
-plot!(time_axis, X[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
-plot!(time_axis, X[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
-plot!(time_axis, X[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
 
-h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).^2) * barrWeights[2] + (
-            1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
-plot(time_axis,h_test)
+time_axis=[0:MAX_TIME-1].*Ts
+plot(time_axis, X[1,:]-X_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
+plot!(time_axis, X[2,:]-X_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
+plot!(time_axis, X[3,:]-X_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
+plot!(time_axis, X[4,:]-X_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
+
+# h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).^2) * barrWeights[2] + (
+#             1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
+# plot(time_axis,h_test)
