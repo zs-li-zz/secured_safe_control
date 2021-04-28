@@ -225,13 +225,13 @@ X = np.zeros([N, 4])
 Y = np.zeros([N, 2])
 X_est = np.zeros([N, 4])
 X[0, :] = initial
-Y[0, :] = f_out(X[0, :]) + 0.01 * q * noise[0] * np.array([1, 1]) # add output noise
+Y[0, :] = f_out(X[0, :]) + Ts * q * noise[0] * np.array([1, 1]) # add output noise
 U[0] = CBFControl(X[0, :])
 #X_est at time 0 is zero
 for i in range(1,N):
       # calculate control with states at last time step
     X[i, :] = np.matmul(A_dis, X[i-1, :]) + B_dis * U[i-1]
-    Y[i, :] = f_out(X[i, :]) + Ts * 0.01 * q * noise[i] * np.array([1, 1]) # add output noise
+    Y[i, :] = f_out(X[i, :]) + Ts * q * noise[i] * np.array([1, 1]) # add output noise
     X_est[i, :] = f_est(X[i - 1, :], Y[i, :], U[i-1])
     U[i] = CBFControl(X[i, :])
     print("step num: ", i)
