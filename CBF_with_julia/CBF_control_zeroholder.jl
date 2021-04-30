@@ -84,6 +84,10 @@ function CBFControl(X)
     return qp_result
 end
 
+function FixgainControl(X)
+    return K_gain'*X
+end
+
 # function func(X, t, q)
 #     X_dot = zeros(8)
 #     i = int(t/Ts)
@@ -141,7 +145,6 @@ B_dis=[5.0e-3 1.25e-5 -2.6e-8 1.357e-8
 ## get data
 w=zeros(n,N)
 v=zeros(m,N)
-
 X=zeros(n,N)
 Y=zeros(m,N)
 X_est=zeros(n,N)
@@ -158,7 +161,7 @@ U[1]= CBFControl(Xs_est[:,1])[1]
 
 # ATTACK
 C_attack=[0; 0; 1; 0]
-a=10*(rand(N).-0.5)
+a=0*(rand(N).-0.5)
 
 @time for k=2:N
     println("\n========================================================= time step = ", k)
@@ -176,7 +179,7 @@ a=10*(rand(N).-0.5)
     Xs_est[:,k] = T_*x
     # update control based on estimation
     println("\nsolving QP at k = ", k)
-    U[k]=CBFControl(Xs_est[:,k])[1]
+    U[k]=FixgainControl(X[:,k])[1]
 end
 
 
@@ -196,26 +199,41 @@ end
 #     print("step num: ", i)
 #     print("X_RESULT: ", X[i, :])
 
+# label = ["cart position" "cart velocity" "pendulum angle" "pendulum angle velocity"],
+# legend= [:topright :topright :bottomright :bottomright],
 
 time_axis=[0:N-1].*Ts
-plot(time_axis, X[1,:], label = "cart position", linecolor = "blue", line = (:solid, 1))
-plot!(time_axis, X[2,:], label = "cart velocity", linecolor = "blue", line = (:dot, 2))
-plot!(time_axis, X[3,:], label = "pendulum angle", linecolor = "red", line = (:solid, 1))
-plot!(time_axis, X[4,:], label = "pendulum angle velocity", linecolor = "red", line = (:dot, 2))
-plot!( title="State under attack with secure estiamtion", xlabel="time / s", ylabel="value of states")
-savefig("State under attack with secure estiamtion")
+plot(time_axis, X',
+title = ["cart position (m)" "cart velocity (m/s)" "pendulum angle (rad)" "pendulum angle velocity (rad/s)"],
+label = ["" "" "" ""],
+# ylabel = ["cart position" "cart velocity" "pendulum angle" "pendulum angle velocity"],
+xlabel = "time / s",
+layout=(2,2) )
+plot!(time_axis, [x_barr*ones(N) v_barr*ones(N) t_barr*ones(N) w_barr*ones(N)], label = ["" "" "" ""], layout=(2,2), linecolor="red" )
+plot!(time_axis, [-x_barr*ones(N) -v_barr*ones(N) -t_barr*ones(N) -w_barr*ones(N)], label = ["" "" "" ""], layout=(2,2), linecolor="red" )
 
-plot(time_axis, X[1,:]-X_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
-plot!(time_axis, X[2,:]-X_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
-plot!(time_axis, X[3,:]-X_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
-plot!(time_axis, X[4,:]-X_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
-#
+# plot(time_axis, X[1,:], label = "cart position", linecolor = "blue", line = (:solid, 1))
+# plot!(time_axis, X[2,:], label = "cart velocity", linecolor = "blue", line = (:dot, 2))
+# plot!(time_axis, X[3,:], label = "pendulum angle", linecolor = "red", line = (:solid, 1))
+# plot!(time_axis, X[4,:], label = "pendulum angle velocity", linecolor = "red", line = (:dot, 2))
+# plot!( title="State under attack with secure estiamtion", xlabel="time / s", ylabel="value of states")
+# plot!( title="States with CBF controller + secure estimator under attack")
+savefig("States_with_fixgain")
+# savefig("States_with_attack_and_secure_est")
+
+plot(time_axis, X[1,:]-X_est[1,:], label = "cart position", linecolor = "blue", line = (:solid, 1))
+plot!(time_axis, X[2,:]-X_est[2,:], label = "cart velocity", linecolor = "blue", line = (:dot, 2))
+plot!(time_axis, X[3,:]-X_est[3,:], label = "pendulum angle", linecolor = "red", line = (:solid, 1))
+plot!(time_axis, X[4,:]-X_est[4,:], label = "pendulum angle velocity", linecolor = "red", line = (:dot, 2))
+plot!( title="Estimation error of fix gain estimator under attack", xlabel="time / s", ylabel="value of estimation error")
+savefig("Estimation error of fix gain estimator under attack")
+
 plot(time_axis, X[1,:]-Xs_est[1,:], label = "cart position", linecolor = "blue", line = (:solid, 1))
 plot!(time_axis, X[2,:]-Xs_est[2,:], label = "cart velocity", linecolor = "blue", line = (:dot, 2))
 plot!(time_axis, X[3,:]-Xs_est[3,:], label = "pendulum angle", linecolor = "red", line = (:solid, 1))
 plot!(time_axis, X[4,:]-Xs_est[4,:], label = "pendulum angle velocity", linecolor = "red", line = (:dot, 2))
-plot!( title="Estimation error under attack", xlabel="time / s", ylabel="value of estimation error")
-savefig("Estimation error under attack")
+plot!( title="Estimation error of secure estimator under attack", xlabel="time / s", ylabel="value of estimation error")
+savefig("Estimation error of secure estimator under attack")
 
 #
 # plot(time_axis, X_est[1,:]-Xs_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
@@ -226,5 +244,8 @@ savefig("Estimation error under attack")
 h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).^2) * barrWeights[2] + (
             1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
 plot(time_axis,h_test, label="")
-plot!(title="Zeroing barrier function with secure estimation", xlabel="time / s", ylabel="value of zeroing barrier function")
-savefig("Zeroing barrier function secure estimation")
+plot!(time_axis,zeros(N), label="", linecolor = "red", line = (:dot, 2))
+# plot!(title="Zeroing barrier function with secure estimation", xlabel="time / s", ylabel="value of zeroing barrier function")
+# savefig("Zeroing barrier function secure estimation")
+plot!(title="Zeroing barrier function with linear feedback control", xlabel="time / s", ylabel="value of zeroing barrier function")
+savefig("ZBF_with_fixgain")

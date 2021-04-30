@@ -1,3 +1,5 @@
+## Inverted pendulum used for simulation
+
 Based on the knowledge of theoretical mechanics, one obtains the inverted pendulum system dynamic:
 <!-- $$(M+m)\ddot{x}+b \dot{x} +ml \ddot{\theta} \cos \theta - ml \dot{\theta}^2\sin\theta=F,$$ -->
 <!-- $$ml^2 \ddot{\theta} +mgl\sin\theta =ml\ddot{x}\cos\theta.$$ -->
@@ -36,3 +38,40 @@ Sample the continuous time system with period $T$, then the discrete system is
 $x(k+1)=Ax(k)+Bu(k)$ where
 
 <a href="https://www.codecogs.com/eqnedit.php?latex=A=\exp(T\cdot&space;A_c),\&space;B=\left(\int_{0}^{T}&space;\exp(\tau&space;A_c)&space;d\tau&space;\right)B_c&space;." target="_blank"><img src="https://latex.codecogs.com/gif.latex?A=\exp(T\cdot&space;A_c),\&space;B=\left(\int_{0}^{T}&space;\exp(\tau&space;A_c)&space;d\tau&space;\right)B_c&space;." title="A=\exp(T\cdot A_c),\ B=\left(\int_{0}^{T} \exp(\tau A_c) d\tau \right)B_c ." /></a>
+# Safe control
+This section focus on the safety validation of the safe control scheme. The safety barrier is set as
+
+```
+x_1 cart position: [-15,15] m
+x_2 cart position: [-10,10] m/s
+x_3 pendulum angle: [-π/6,π/6] rad
+x_4 pendulum angle velocity position: [5,5] rad/s
+```
+
+and the barrier weights are `[3, 5, 3, 5]`.
+
+The initial values of the states are `[0; 10.5; 0; 0]`.
+We first show that fix gain feedback control with control gain `K_control=[4.472; 21.750; 192.188; 158.755]` is not safe.
+
+## Fix-gain Feedback control (not safe)
+The first figure shows the states under this fix gain feedback controller.
+
+![States with fixgain](/figs/States_with_fixgain.png)
+
+The following figure shows that zeroing barrier function goes beyond 0, which means the safe barrier is exceeded.
+
+![ZBF with fixgain](/figs/ZBF_with_fixgain.png)
+
+
+
+## Safe control with oracle Feedback
+
+## Safe control with secure Estimation as Feedback
+
+The first figure shows the states with our proposed CBF controller with states estimated by the proposed secure estimator.
+
+![States with attack and secure est](/figs/States_with_attack_and_secure_est.png)
+
+The following figure shows that zeroing barrier function holds above 0, which means the states are in the safe barriers.
+
+![ZBF with attack and secure est](/figs/ZBF_with_attack_and_secure_est.png)
