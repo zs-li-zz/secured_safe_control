@@ -79,7 +79,7 @@ function CBFControl(X)
     ## using CVXOPT
     qp_result = qpsolvers.cvxopt_solve_qp(qp_P,qp_q,qp_G,qp_h)
     # print("\nqp_P, qp_q, qp_G, qp_h", qp_P, qp_q, qp_G, qp_h)
-    print("\nqp_result: ", qp_result)
+    print("qp_result: ", qp_result)
 
     return qp_result
 end
@@ -101,16 +101,18 @@ end
 # end
 
 ## begin running simulation
-N = 300
+N = 800
 Ts=1/200.0
 
 C =  [1 0 0 0
+      1 0 0 0
+      0 0 1 0
       0 0 1 0]
 n=4
 m=size(C,1)
 
 Q = 0.0001*Matrix(1.0I,n,n)#+0.01*rand(n,n)
-R = 5*Matrix(1.0I,m,m)#+0.01*rand(m,m)
+R = 1*Matrix(1.0I,m,m)#+0.01*rand(m,m)
 
 ## Calculate discrete system Matrix
 A_dis=exp(Ts*A_lin)
@@ -146,9 +148,17 @@ X_est=zeros(n,N)
 Xs_est=zeros(n,N)
 U=zeros(N)
 # initialization
-X[:,1]=[ 0 ; 11.856 ; 0 ; 0 ]
+γ = 10
+X[:,1]=[ 0 ; 10.5 ; 0 ; 0 ]
 Y[:,1]=C*X[:,1]+rand(Gaussian(zeros(m),R))
+X_est[:,1]=X[:,1] # TODO: delete this orcale estimation initialization in the future
+ζ[:,1]=initialize_ζ(X[:,1])
+Xs_est[:,1]=X[:,1]
 U[1]= CBFControl(Xs_est[:,1])[1]
+
+# ATTACK
+C_attack=[0; 0; 1; 0]
+a=10*(rand(N).-0.5)
 
 @time for k=2:N
     println("\n========================================================= time step = ", k)
@@ -156,17 +166,16 @@ U[1]= CBFControl(Xs_est[:,1])[1]
     # w[:,k]=Ts*rand(Gaussian(zeros(n),Q)) # (第一个w没用到)
     v[:,k]=Ts*rand(Gaussian(zeros(m),R))
     X[:,k]=A_dis*X[:,k-1]+B_dis*U[k-1] # now without noise w
-    Y[:,k]=C*X[:,k]+v[:,k]
+    Y[:,k]=C*X[:,k]+v[:,k]+C_attack*a[k] #ATTACK ADDED HERE
     # calculate fix gain estimation
     X_est[:,k]=(A_dis-L*C*A_dis)*X_est[:,k-1]+B_dis*U[k-1]+L*Y[:,k]
     # calculate secure estimation
     ζ[:,k]=update_ζ( ζ[:,k-1], Y[:,k], B_dis, U[k-1] )
-    γ = 5000
     println("solving LASSO at k = ", k)
     x, μ, ν = solve_opt(ζ[:,k], γ, 0)
     Xs_est[:,k] = T_*x
     # update control based on estimation
-    println("solving QP at k = ", k)
+    println("\nsolving QP at k = ", k)
     U[k]=CBFControl(Xs_est[:,k])[1]
 end
 
@@ -189,20 +198,25 @@ end
 
 
 time_axis=[0:N-1].*Ts
-plot(time_axis, X[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
-plot!(time_axis, X[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
-plot!(time_axis, X[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
-plot!(time_axis, X[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
+plot(time_axis, X[1,:], label = "cart position", linecolor = "blue", line = (:solid, 1))
+plot!(time_axis, X[2,:], label = "cart velocity", linecolor = "blue", line = (:dot, 2))
+plot!(time_axis, X[3,:], label = "pendulum angle", linecolor = "red", line = (:solid, 1))
+plot!(time_axis, X[4,:], label = "pendulum angle velocity", linecolor = "red", line = (:dot, 2))
+plot!( title="State under attack with secure estiamtion", xlabel="time / s", ylabel="value of states")
+savefig("State under attack with secure estiamtion")
 
 plot(time_axis, X[1,:]-X_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
 plot!(time_axis, X[2,:]-X_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
 plot!(time_axis, X[3,:]-X_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
 plot!(time_axis, X[4,:]-X_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
 #
-plot(time_axis, X[1,:]-Xs_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
-plot!(time_axis, X[2,:]-Xs_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
-plot!(time_axis, X[3,:]-Xs_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
-plot!(time_axis, X[4,:]-Xs_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2),ylim=[-1, 15])
+plot(time_axis, X[1,:]-Xs_est[1,:], label = "cart position", linecolor = "blue", line = (:solid, 1))
+plot!(time_axis, X[2,:]-Xs_est[2,:], label = "cart velocity", linecolor = "blue", line = (:dot, 2))
+plot!(time_axis, X[3,:]-Xs_est[3,:], label = "pendulum angle", linecolor = "red", line = (:solid, 1))
+plot!(time_axis, X[4,:]-Xs_est[4,:], label = "pendulum angle velocity", linecolor = "red", line = (:dot, 2))
+plot!( title="Estimation error under attack", xlabel="time / s", ylabel="value of estimation error")
+savefig("Estimation error under attack")
+
 #
 # plot(time_axis, X_est[1,:]-Xs_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
 # plot!(time_axis, X_est[2,:]-Xs_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
@@ -211,4 +225,6 @@ plot!(time_axis, X[4,:]-Xs_est[4,:], label = "angle velocity", linecolor = "red"
 
 h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).^2) * barrWeights[2] + (
             1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
-plot(time_axis,h_test)
+plot(time_axis,h_test, label="")
+plot!(title="Zeroing barrier function with secure estimation", xlabel="time / s", ylabel="value of zeroing barrier function")
+savefig("Zeroing barrier function secure estimation")

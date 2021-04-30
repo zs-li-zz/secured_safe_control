@@ -1,6 +1,7 @@
 # The used kalman parameter K is transformed from original kalman
 
 using LinearAlgebra, GaussianDistributions, Random
+using CUDA_jll
 using Convex, SCS
 
 function preprocess(A_in, B_in, C_in, Q_in, R_in, Σ_in, MAX_TIME_IN=1000)
@@ -250,7 +251,7 @@ global Πt=kron(Matrix(1.0I,m,m), Π)
 global Wt = sylvester(-inv(Πt), Matrix(Πt'), inv(Πt)*Qt)
 # Wt=(Wt+Wt')/2
 # @show Wt
-global r=rank(Wt, rtol=10^(-20))
+global r=rank(Wt, rtol=10^(-10))
 TW=eigen(Wt).vectors # T*Λ*Tinv=Wt
 L=sqrt(Diagonal(eigen(Wt).values[mn-r+1:end]))
 global D=inv(L)*inv(TW)[mn-r+1:end,:]*inv(Pt)
@@ -264,6 +265,13 @@ return Π, S
 
 end ########################################################################################
 
+function initialize_ζ(x0)
+    ζ0=complex(zeros(mn,1))
+    for i in 1:m
+        ζ0[n*(i-1)+1:n*i]=G[:,:,i]*x0
+    end
+    return ζ0
+end
 
 function update_ζ(ζ, y, B, u)
     return kron(Diagonal(1.0I,m),Π)*ζ + kron(Diagonal(1.0I,m),ones(n,1))*y + G_C*B*u[1]
@@ -278,10 +286,10 @@ function  solve_opt(ζ, γ, VERBOSE=1) # TODO ignore the unsymmetric of Pt
     ν = ComplexVariable(mn, 1)
     μ_new = ComplexVariable(r, 1)
 
-    problem = minimize((sumsquares(real(μ_new))+sumsquares(imag(μ_new)))/2+γ*norm(ν, 1), Pt*ζ==S*x+μ, μ_new==D*μ )
+    problem = minimize((sumsquares(real(μ_new))+sumsquares(imag(μ_new)))/2+γ*norm(ν, 1), Pt*ζ==S*x+μ+ν, μ_new==D*μ )
 
-    # Solve the problem by calling solve!
-    @time Convex.solve!(problem, SCS.Optimizer(max_iters=100000, verbose=VERBOSE), warmstart=true) # 
+    # Solve the problem by calling solve!  linear_solver = SCS.GpuIndirectSolver,
+    @time Convex.solve!(problem, SCS.Optimizer(linear_solver = SCS.DirectSolver, max_iters=100000, verbose=VERBOSE), warmstart=true) #
 
     # Check the status of the problem
     # println("problem status: ", problem.status) # :Optimal, :Infeasible, :unbounded etc.
