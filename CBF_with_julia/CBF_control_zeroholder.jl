@@ -101,8 +101,8 @@ end
 # end
 
 ## begin running simulation
-N = 100
-Ts=1/50.0
+N = 300
+Ts=1/200.0
 
 C =  [1 0 0 0
       0 0 1 0]
@@ -114,19 +114,27 @@ R = 5*Matrix(1.0I,m,m)#+0.01*rand(m,m)
 
 ## Calculate discrete system Matrix
 A_dis=exp(Ts*A_lin)
-B_dis=[0.02 0.0001999334 -0.0000013570 0.0000001377
-0 0.0199900046 -0.0001956617 0.00019997213
-0 0.0000000371 0.0200028716 0.0001997213
-0 0.0000019965 0.0004305862 0.0199589342]*B_lin
+B_dis=[5.0e-3 1.25e-5 -2.6e-8 1.357e-8
+        0 5.0e-3 -1.22445e-5 1.229e-6
+        0 1.3983e-9 5.0e-3 1.249e-5
+        0 1.249e-07 2.694e-5 5.0e-3]*B_lin # Ts=0.005s
 
-L=[1.7 0.1
-0.541 -0.832
-0.01 1.53
-0.0148 2.4454]
+# L=[1.7 0.1
+# 0.541 -0.832
+# 0.01 1.53
+# 0.0148 2.4454]
+# L=[0.04672363002737808 -0.005071800774844405;
+#  0.03215793933396229 -0.022198766070737754;
+#  -0.0050718007748444035 0.0630571438858606;
+#  -0.006922167963725549  0.07919708237465681 ]
 
 ## preprocess for secure estimator
-Λ_, K_, C_, T_ = preprocess(A_dis, B_dis, C, Q, Ts^2*R, Q)
+Λ_, L, C_, T_ = preprocess(A_dis, B_dis, C, Q, Ts^2*R, Q)
 ζ=complex(zeros(m*n,N))
+# L=[1.7 0.1
+# 0.541 -0.832
+# 0.01 1.53
+# 0.0148 2.4454]
 
 ## get data
 w=zeros(n,N)
@@ -140,7 +148,7 @@ U=zeros(N)
 # initialization
 X[:,1]=[ 0 ; 11.856 ; 0 ; 0 ]
 Y[:,1]=C*X[:,1]+rand(Gaussian(zeros(m),R))
-U[1]= CBFControl(X_est[:,1])[1]
+U[1]= CBFControl(Xs_est[:,1])[1]
 
 @time for k=2:N
     println("\n========================================================= time step = ", k)
@@ -150,16 +158,16 @@ U[1]= CBFControl(X_est[:,1])[1]
     X[:,k]=A_dis*X[:,k-1]+B_dis*U[k-1] # now without noise w
     Y[:,k]=C*X[:,k]+v[:,k]
     # calculate fix gain estimation
-    X_est[:,k]=A_dis*X_est[:,k-1]+B_dis*U[k-1]+L*(Y[:,k]-C*A_dis*X_est[:,k-1])
+    X_est[:,k]=(A_dis-L*C*A_dis)*X_est[:,k-1]+B_dis*U[k-1]+L*Y[:,k]
     # calculate secure estimation
     ζ[:,k]=update_ζ( ζ[:,k-1], Y[:,k], B_dis, U[k-1] )
-    γ = 1000
+    γ = 5000
     println("solving LASSO at k = ", k)
     x, μ, ν = solve_opt(ζ[:,k], γ, 0)
     Xs_est[:,k] = T_*x
     # update control based on estimation
     println("solving QP at k = ", k)
-    U[k]=CBFControl(X_est[:,k])[1]
+    U[k]=CBFControl(Xs_est[:,k])[1]
 end
 
 
@@ -190,17 +198,17 @@ plot(time_axis, X[1,:]-X_est[1,:], label = "position", linecolor = "blue", line 
 plot!(time_axis, X[2,:]-X_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
 plot!(time_axis, X[3,:]-X_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
 plot!(time_axis, X[4,:]-X_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
-
+#
 plot(time_axis, X[1,:]-Xs_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
 plot!(time_axis, X[2,:]-Xs_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
 plot!(time_axis, X[3,:]-Xs_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
-plot!(time_axis, X[4,:]-Xs_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
+plot!(time_axis, X[4,:]-Xs_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2),ylim=[-1, 15])
+#
+# plot(time_axis, X_est[1,:]-Xs_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
+# plot!(time_axis, X_est[2,:]-Xs_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
+# plot!(time_axis, X_est[3,:]-Xs_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
+# plot!(time_axis, X_est[4,:]-Xs_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
 
-plot(time_axis, X_est[1,:]-Xs_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
-plot!(time_axis, X_est[2,:]-Xs_est[2,:], label = "velocity", linecolor = "blue", line = (:dot, 2))
-plot!(time_axis, X_est[3,:]-Xs_est[3,:], label = "angle", linecolor = "red", line = (:solid, 1))
-plot!(time_axis, X_est[4,:]-Xs_est[4,:], label = "angle velocity", linecolor = "red", line = (:dot, 2))
-
-# h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).^2) * barrWeights[2] + (
-#             1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
-# plot(time_axis,h_test)
+h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).^2) * barrWeights[2] + (
+            1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
+plot(time_axis,h_test)

@@ -17,12 +17,16 @@ function preprocess(A_in, B_in, C_in, Q_in, R_in, Σ_in, MAX_TIME_IN=1000)
     # global Q_in
     # O1A=obsv(Λ, C[1,:]')*Λ
     # global R_in
-    global K = [1.7 0.1
-    0.541 -0.832
-    0.01 1.53
-    0.0148 2.4454]
-     # get_kalman_K(A_in, C_in, Q_in ,R_in, Σ_in, B_in)
-    # @show K
+    # global K = [1.7 0.1
+    # 0.541 -0.832
+    # 0.01 1.53
+    # 0.0148 2.4454]
+    global K=get_kalman_K(A_in, C_in, Q_in ,R_in, Σ_in, B_in)
+    @show K
+    # global K = [1.7 0.1
+    # 0.541 -0.832
+    # 0.01 1.53
+    # 0.0148 2.4454]
     global n_u = n
     # if !isempty(findall( <(1), broadcast(abs, diag(Λ)) ))
     #     n_u = findall( <(1), broadcast(abs, diag(Λ)) )[1]-1
@@ -124,7 +128,7 @@ function get_kalman_K(A_in, C_in, Q_in, R_in, Σ_in, B_in)
     Plim=P[:,:,MAX_TIME]
     Pplus=A_in*Plim*A_in'+Q_in
     K_km=Pplus*C_in'*inv(C_in*Pplus*C_in'+R_in)
-    return inv(T)*K_km #
+    return real(inv(T)*K_km) #
 
 end
 
@@ -243,7 +247,7 @@ global Qt = G_C*Q_in*G_C'+kron(R_in, ones(n,n))
 global Πt=kron(Matrix(1.0I,m,m), Π)
 # @show Πt
 # Wt=dlyap(Πt,Qt)
-global Wt = sylvester(-inv(Πt), Matrix(Πt'), real(inv(Πt)*Qt))
+global Wt = sylvester(-inv(Πt), Matrix(Πt'), inv(Πt)*Qt)
 # Wt=(Wt+Wt')/2
 # @show Wt
 global r=rank(Wt, rtol=10^(-20))
@@ -274,10 +278,10 @@ function  solve_opt(ζ, γ, VERBOSE=1) # TODO ignore the unsymmetric of Pt
     ν = ComplexVariable(mn, 1)
     μ_new = ComplexVariable(r, 1)
 
-    problem = minimize((sumsquares(real(μ_new))+sumsquares(imag(μ_new)))/2+γ*norm(ν, 1), Pt*ζ==S*x+μ+ν, μ_new==D*μ )
+    problem = minimize((sumsquares(real(μ_new))+sumsquares(imag(μ_new)))/2+γ*norm(ν, 1), Pt*ζ==S*x+μ, μ_new==D*μ )
 
     # Solve the problem by calling solve!
-    @time Convex.solve!(problem, SCS.Optimizer(max_iters=50000,verbose=VERBOSE), warmstart=true) #
+    @time Convex.solve!(problem, SCS.Optimizer(max_iters=100000, verbose=VERBOSE), warmstart=true) # 
 
     # Check the status of the problem
     # println("problem status: ", problem.status) # :Optimal, :Infeasible, :unbounded etc.
