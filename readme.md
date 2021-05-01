@@ -104,7 +104,7 @@ Even though with CBF safe controller, the system is not in the safe region becau
 
 ![](/figs/States_cbf_lin_att.png)
 
-The zeroing barrier function gose below zero and the states may be out of safe region.
+The zeroing barrier function goes below zero and the states may be out of safe region.
 
 ![](/figs/ZBF_cbf_lin_att.png)
 
@@ -120,6 +120,6 @@ The zeroing barrier function stays above zero despite the attack.
 
 ![](/figs/ZBF_cbf_sec_att.png)
 
-The estimation error of angle and angle velocity are smaller than linear estimator, which means our estimator works well.
+The estimation error of angle and angle velocity are smaller than linear estimator, which means that our estimator works well.
 
 ![](/figs/esterr_sec_att.png)
