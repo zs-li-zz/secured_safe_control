@@ -25,14 +25,15 @@ $x(k+1)=Ax(k)+Bu(k)$ where
 <a href="https://www.codecogs.com/eqnedit.php?latex=A=\exp(T\cdot&space;A_c),\&space;B=\left(\int_{0}^{T}&space;\exp(\tau&space;A_c)&space;d\tau&space;\right)B_c&space;." target="_blank"><img src="https://latex.codecogs.com/gif.latex?A=\exp(T\cdot&space;A_c),\&space;B=\left(\int_{0}^{T}&space;\exp(\tau&space;A_c)&space;d\tau&space;\right)B_c&space;." title="A=\exp(T\cdot A_c),\ B=\left(\int_{0}^{T} \exp(\tau A_c) d\tau \right)B_c ." /></a>
 
 The system output equation is
-$$Y(k)=Cx(k)+v(k)+a(k)$$
-where $v(k)$ is the output noise and $a(k)$ is the injected attack. The output matrix is
-<a href="https://www.codecogs.com/eqnedit.php?latex=\begin{bmatrix}&space;1&&space;0&space;&0&&space;0\\&space;1&&space;0&&space;0&space;&0\\&space;0&space;&0&&space;1&space;&0\\&space;0&space;&0&&space;1&&space;0&space;\end{bmatrix}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\begin{bmatrix}&space;1&&space;0&space;&0&&space;0\\&space;1&&space;0&&space;0&space;&0\\&space;0&space;&0&&space;1&space;&0\\&space;0&space;&0&&space;1&&space;0&space;\end{bmatrix}" title="\begin{bmatrix} 1& 0 &0& 0\\ 1& 0& 0 &0\\ 0 &0& 1 &0\\ 0 &0& 1& 0 \end{bmatrix}" /></a> .
+$$Y(k)=Cx(k)+v(k)+a(k),\ C=\begin{bmatrix}1&0&0&0\\1&0&0&0\\0&0&1&0\\0&0&1&0\end{bmatrix}$$
+where $v(k)$ is the output noise and $a(k)$ is the injected attack.
 There are 2 sensors monitoring the cart position and 2 sensors monitoring the pendulum angle.
 
 The system is simulated with sampling time $T_s=1/200 s$.
 
-The system noise process has covariance $Q=T_s^2*diag[0.1 0.1 0.01 0.01]$ and the measurement noise is $Q=T_s^2*diag[1 1 0.1 0.1]$, i.e., the noise is scaled according to sampling time $T_s$.
+The system noise process has covariance $Q=T_s^2*diag[0.1 0.1 0.01 0.01]$
+and the measurement noise is $Q=T_s^2*diag[1 1 0.1 0.1]$,
+i.e., the noise is scaled according to sampling time $T_s$.
 
 
 # Safe control
