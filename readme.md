@@ -25,14 +25,16 @@ $x(k+1)=Ax(k)+Bu(k)$ where
 <a href="https://www.codecogs.com/eqnedit.php?latex=A=\exp(T\cdot&space;A_c),\&space;B=\left(\int_{0}^{T}&space;\exp(\tau&space;A_c)&space;d\tau&space;\right)B_c&space;." target="_blank"><img src="https://latex.codecogs.com/gif.latex?A=\exp(T\cdot&space;A_c),\&space;B=\left(\int_{0}^{T}&space;\exp(\tau&space;A_c)&space;d\tau&space;\right)B_c&space;." title="A=\exp(T\cdot A_c),\ B=\left(\int_{0}^{T} \exp(\tau A_c) d\tau \right)B_c ." /></a>
 
 The system output equation is
-$$Y(k)=Cx(k)+v(k)+a(k),\ C=\begin{bmatrix}1&0&0&0\\ 1&0&0&0\\ 0&0&1&0\\ 0&0&1&0 \end{bmatrix}$$
+
+<a href="https://www.codecogs.com/eqnedit.php?latex=Y(k)=Cx(k)&plus;v(k)&plus;a(k),\text{&space;where&space;}&space;C=\begin{bmatrix}1&0&0&0&space;\\\&space;1&0&0&0&space;\\\&space;0&0&1&0&space;\\\&space;0&0&1&0&space;\end{bmatrix}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?Y(k)=Cx(k)&plus;v(k)&plus;a(k),\text{&space;where&space;}&space;C=\begin{bmatrix}1&0&0&0&space;\\\&space;1&0&0&0&space;\\\&space;0&0&1&0&space;\\\&space;0&0&1&0&space;\end{bmatrix}" title="Y(k)=Cx(k)+v(k)+a(k),\text{ where } C=\begin{bmatrix}1&0&0&0 \\\ 1&0&0&0 \\\ 0&0&1&0 \\\ 0&0&1&0 \end{bmatrix}" /></a>
+
 where $v(k)$ is the output noise and $a(k)$ is the injected attack.
 There are 2 sensors monitoring the cart position and 2 sensors monitoring the pendulum angle.
 
 The system is simulated with sampling time $T_s=1/200 s$.
 
-The system noise process has covariance $Q=T_s^2 diag[0.1 0.1 0.01 0.01]$
-and the measurement noise is $Q=T_s^2 diag[1 1 0.1 0.1]$,
+The system noise process has covariance <a href="https://www.codecogs.com/eqnedit.php?latex=Q=T_s^2&space;\cdot&space;{\rm&space;diag}[0.1\&space;0.1\&space;0.01\&space;0.01]" target="_blank"><img src="https://latex.codecogs.com/gif.latex?Q=T_s^2&space;\cdot&space;{\rm&space;diag}[0.1\&space;0.1\&space;0.01\&space;0.01]" title="Q=T_s^2 \cdot {\rm diag}[0.1\ 0.1\ 0.01\ 0.01]" /></a> 
+and the measurement noise is <a href="https://www.codecogs.com/eqnedit.php?latex=R=T_s^2&space;\cdot&space;{\rm&space;diag}[1\&space;1\&space;0.1\&space;0.1]" target="_blank"><img src="https://latex.codecogs.com/gif.latex?R=T_s^2&space;\cdot&space;{\rm&space;diag}[1\&space;1\&space;0.1\&space;0.1]" title="R=T_s^2 \cdot {\rm diag}[1\ 1\ 0.1\ 0.1]" /></a>,
 i.e., the noise is scaled according to sampling time $T_s$.
 
 
@@ -102,6 +104,10 @@ Even though with CBF safe controller, the system is not in the safe region becau
 
 ![](/figs/States_cbf_lin_att.png)
 
+The zeroing barrier function goes below zero and the states may be out of safe region.
+
+![](/figs/ZBF_cbf_lin_att.png)
+
 ![](/figs/esterr_lin_att.png)
 
 ## 2. Safe control with secure estimator
@@ -110,10 +116,10 @@ The following figures show the states and zeroing barrier function with our prop
 
 ![](/figs/States_cbf_sec_att.png)
 
-The zeroing barrier functions stays above zero despite the attack.
+The zeroing barrier function stays above zero despite the attack.
 
 ![](/figs/ZBF_cbf_sec_att.png)
 
-The estimation error of angle and angle velocity are smaller than linear estimator, which means our estimator works well.
+The estimation error of angle and angle velocity are smaller than linear estimator, which means that our estimator works well.
 
 ![](/figs/esterr_sec_att.png)
