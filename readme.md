@@ -4,54 +4,45 @@ We use an inverted pendulum for simulation, the physical parameters are shown in
 
 <img src="/figs/inv_pen.png" width="480">
 
-Notice that the pendulum length is 5m long, which is harder to stablize than shorter pendulums and also pose challenge for controlling the states in safety barriers.
 
 Based on the knowledge of theoretical mechanics, one obtains the inverted pendulum system dynamic:
-<!-- $$(M+m)\ddot{x}+b \dot{x} +ml \ddot{\theta} \cos \theta - ml \dot{\theta}^2\sin\theta=F,$$ -->
-<!-- $$ml^2 \ddot{\theta} +mgl\sin\theta =ml\ddot{x}\cos\theta.$$ -->
+
+<a href="https://www.codecogs.com/eqnedit.php?latex=(M&plus;m)\ddot{x}&plus;b_x&space;\dot{x}&space;&plus;ml&space;\ddot{\theta}&space;\cos&space;\theta&space;-&space;ml&space;\dot{\theta}^2\sin\theta=F" target="_blank"><img src="https://latex.codecogs.com/gif.latex?(M&plus;m)\ddot{x}&plus;b_x&space;\dot{x}&space;&plus;ml&space;\ddot{\theta}&space;\cos&space;\theta&space;-&space;ml&space;\dot{\theta}^2\sin\theta=F" title="(M+m)\ddot{x}+b_x \dot{x} +ml \ddot{\theta} \cos \theta - ml \dot{\theta}^2\sin\theta=F" /></a>
+
+<a href="https://www.codecogs.com/eqnedit.php?latex=ml^2&space;\ddot{\theta}&plus;ml\ddot{x}\cos\theta&space;&plus;b_\theta&space;l&space;\dot{\theta}&space;=&space;mgl\sin\theta&space;." target="_blank"><img src="https://latex.codecogs.com/gif.latex?ml^2&space;\ddot{\theta}&plus;ml\ddot{x}\cos\theta&space;&plus;b_\theta&space;l&space;\dot{\theta}&space;=&space;mgl\sin\theta&space;." title="ml^2 \ddot{\theta}+ml\ddot{x}\cos\theta +b_\theta l \dot{\theta} = mgl\sin\theta ." /></a>
+
+where $b_x$ and $b_\theta$ are the coefficients of friction w.r.t. cart and pendulum.
+
 Rewrite it as a non-linear state space model :
-<!-- $$
-\left[\begin{array}{cccc}
-	1 & 0 & 0 & 0 \\
-	0 & m+M & 0 & m l \cos \theta \\
-	0 & 0 & 1 & 0 \\
-	0 & m l \cos \theta & 0 & m l^{2}
-\end{array}\right] \frac{d}{d t}\left[\begin{array}{c}
-	x \\
-	\dot{x} \\
-	\theta \\
-	\dot{\theta}
-\end{array}\right]=\left[\begin{array}{c}
-	\dot{x} \\
-	m l \dot{\theta}^{2} \sin \theta-b \dot{x} \\
-	\dot{\theta} \\
-	m g l \sin \theta
-\end{array}\right]+\left[\begin{array}{c}
-	0 \\
-	1 \\
-	0 \\
-	0
-\end{array}\right] F.
-$$ -->
-Reformulate the system as $\dot{x}=f(x)+g(x)u$ and linearize system at $\theta=0,\dot{\theta}=0$.
-Then for continuous time $\dot{x}(t)=A_c x(t) +B_c u(t)$
 
-<a href="https://www.codecogs.com/eqnedit.php?latex=A_c=\partial&space;f(x)/&space;\partial&space;x&space;|_{x_3=x_4=0}&space;=&space;\left[\begin{array}{cccc}&space;0&space;&&space;1&space;&&space;0&space;&&space;0&space;\\&space;0&space;&&space;-\frac{b}{M}&space;&&space;-\frac{mg}{M}&space;&&space;0&space;\\&space;0&space;&&space;0&space;&&space;0&space;&&space;1&space;\\&space;0&space;&&space;\frac{b}{Ml}&space;&&space;\frac{g(M&plus;m)}{Ml}&space;&&space;0&space;\end{array}\right]" target="_blank"><img src="https://latex.codecogs.com/gif.latex?A_c=\partial&space;f(x)/&space;\partial&space;x&space;|_{x_3=x_4=0}&space;=&space;\left[\begin{array}{cccc}&space;0&space;&&space;1&space;&&space;0&space;&&space;0&space;\\&space;0&space;&&space;-\frac{b}{M}&space;&&space;-\frac{mg}{M}&space;&&space;0&space;\\&space;0&space;&&space;0&space;&&space;0&space;&&space;1&space;\\&space;0&space;&&space;\frac{b}{Ml}&space;&&space;\frac{g(M&plus;m)}{Ml}&space;&&space;0&space;\end{array}\right]" title="A_c=\partial f(x)/ \partial x |_{x_3=x_4=0} = \left[\begin{array}{cccc} 0 & 1 & 0 & 0 \\ 0 & -\frac{b}{M} & -\frac{mg}{M} & 0 \\ 0 & 0 & 0 & 1 \\ 0 & \frac{b}{Ml} & \frac{g(M+m)}{Ml} & 0 \end{array}\right]" /></a>
+<a href="https://www.codecogs.com/eqnedit.php?latex=\left[\begin{array}{cccc}&space;1&space;&&space;0&space;&&space;0&space;&&space;0&space;\\&space;0&space;&&space;m&plus;M&space;&&space;0&space;&&space;m&space;l&space;\cos&space;\theta&space;\\&space;0&space;&&space;0&space;&&space;1&space;&&space;0&space;\\&space;0&space;&&space;m&space;l&space;\cos&space;\theta&space;&&space;0&space;&&space;m&space;l^{2}&space;\end{array}\right]&space;\frac{d}{d&space;t}\left[\begin{array}{c}&space;x&space;\\&space;\dot{x}&space;\\&space;\theta&space;\\&space;\dot{\theta}&space;\end{array}\right]=\left[\begin{array}{c}&space;\dot{x}&space;\\&space;m&space;l&space;\dot{\theta}^{2}&space;\sin&space;\theta-b_x&space;\dot{x}&space;\\&space;\dot{\theta}&space;\\&space;m&space;g&space;l&space;\sin&space;\theta-b_\theta&space;l\dot{\theta}&space;\end{array}\right]&plus;\left[\begin{array}{c}&space;0&space;\\&space;1&space;\\&space;0&space;\\&space;0&space;\end{array}\right]&space;F." target="_blank"><img src="https://latex.codecogs.com/gif.latex?\left[\begin{array}{cccc}&space;1&space;&&space;0&space;&&space;0&space;&&space;0&space;\\&space;0&space;&&space;m&plus;M&space;&&space;0&space;&&space;m&space;l&space;\cos&space;\theta&space;\\&space;0&space;&&space;0&space;&&space;1&space;&&space;0&space;\\&space;0&space;&&space;m&space;l&space;\cos&space;\theta&space;&&space;0&space;&&space;m&space;l^{2}&space;\end{array}\right]&space;\frac{d}{d&space;t}\left[\begin{array}{c}&space;x&space;\\&space;\dot{x}&space;\\&space;\theta&space;\\&space;\dot{\theta}&space;\end{array}\right]=\left[\begin{array}{c}&space;\dot{x}&space;\\&space;m&space;l&space;\dot{\theta}^{2}&space;\sin&space;\theta-b_x&space;\dot{x}&space;\\&space;\dot{\theta}&space;\\&space;m&space;g&space;l&space;\sin&space;\theta-b_\theta&space;l\dot{\theta}&space;\end{array}\right]&plus;\left[\begin{array}{c}&space;0&space;\\&space;1&space;\\&space;0&space;\\&space;0&space;\end{array}\right]&space;F." title="\left[\begin{array}{cccc} 1 & 0 & 0 & 0 \\ 0 & m+M & 0 & m l \cos \theta \\ 0 & 0 & 1 & 0 \\ 0 & m l \cos \theta & 0 & m l^{2} \end{array}\right] \frac{d}{d t}\left[\begin{array}{c} x \\ \dot{x} \\ \theta \\ \dot{\theta} \end{array}\right]=\left[\begin{array}{c} \dot{x} \\ m l \dot{\theta}^{2} \sin \theta-b_x \dot{x} \\ \dot{\theta} \\ m g l \sin \theta-b_\theta l\dot{\theta} \end{array}\right]+\left[\begin{array}{c} 0 \\ 1 \\ 0 \\ 0 \end{array}\right] F." /></a>
 
-<a href="https://www.codecogs.com/eqnedit.php?latex=B_c=g(x)|_{x_3=x_4=0}&space;=&space;\left[\begin{array}{c}&space;0&space;\\&space;\frac{1}{M}&space;\\&space;0&space;\\&space;-\frac{1}{Ml}&space;\end{array}\right]&space;." target="_blank"><img src="https://latex.codecogs.com/gif.latex?B_c=g(x)|_{x_3=x_4=0}&space;=&space;\left[\begin{array}{c}&space;0&space;\\&space;\frac{1}{M}&space;\\&space;0&space;\\&space;-\frac{1}{Ml}&space;\end{array}\right]&space;." title="B_c=g(x)|_{x_3=x_4=0} = \left[\begin{array}{c} 0 \\ \frac{1}{M} \\ 0 \\ -\frac{1}{Ml} \end{array}\right] ." /></a>
-
-Sample the continuous time system with period $T$, then the discrete system is
+Reformulate the system as <a href="https://www.codecogs.com/eqnedit.php?latex=\dot{x}=f(x)&plus;g(x)u" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\dot{x}=f(x)&plus;g(x)u" title="\dot{x}=f(x)+g(x)u" /></a> and linearize system at <a href="https://www.codecogs.com/eqnedit.php?latex=\theta=0,\dot{\theta}=0" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\theta=0,\dot{\theta}=0" title="\theta=0,\dot{\theta}=0" /></a>.
+Then for continuous time $\dot{x}(t)=A_c x(t) +B_c u(t)$.
+Sample the continuous time system with period $T_s$, then the discrete system is
 $x(k+1)=Ax(k)+Bu(k)$ where
 
 <a href="https://www.codecogs.com/eqnedit.php?latex=A=\exp(T\cdot&space;A_c),\&space;B=\left(\int_{0}^{T}&space;\exp(\tau&space;A_c)&space;d\tau&space;\right)B_c&space;." target="_blank"><img src="https://latex.codecogs.com/gif.latex?A=\exp(T\cdot&space;A_c),\&space;B=\left(\int_{0}^{T}&space;\exp(\tau&space;A_c)&space;d\tau&space;\right)B_c&space;." title="A=\exp(T\cdot A_c),\ B=\left(\int_{0}^{T} \exp(\tau A_c) d\tau \right)B_c ." /></a>
 
-The system is simulated with sampling time `Ts=1/200 s`.
+The system output equation is
+$$Y(k)=Cx(k)+v(k)+a(k)$$
+where $v(k)$ is the output noise and $a(k)$ is the injected attack. The output matrix is
+<a href="https://www.codecogs.com/eqnedit.php?latex=\begin{bmatrix}&space;1&&space;0&space;&0&&space;0\\&space;1&&space;0&&space;0&space;&0\\&space;0&space;&0&&space;1&space;&0\\&space;0&space;&0&&space;1&&space;0&space;\end{bmatrix}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\begin{bmatrix}&space;1&&space;0&space;&0&&space;0\\&space;1&&space;0&&space;0&space;&0\\&space;0&space;&0&&space;1&space;&0\\&space;0&space;&0&&space;1&&space;0&space;\end{bmatrix}" title="\begin{bmatrix} 1& 0 &0& 0\\ 1& 0& 0 &0\\ 0 &0& 1 &0\\ 0 &0& 1& 0 \end{bmatrix}" /></a> .
+There are 2 sensors monitoring the cart position and 2 sensors monitoring the pendulum angle.
 
-The system noise process has covariance `Q=Ts^2*diag[0.1 0.1 0.01 0.01]` and the measurement noise is `Q=Ts^2*diag[1 1 0.1 0.1]`, i.e., the noise is scaled according to sampling time `Ts`.
+The system is simulated with sampling time $T_s=1/200 s$.
+
+The system noise process has covariance $Q=T_s^2*diag[0.1 0.1 0.01 0.01]$ and the measurement noise is $Q=T_s^2*diag[1 1 0.1 0.1]$, i.e., the noise is scaled according to sampling time $T_s$.
 
 
 # Safe control
-This section focus on the safety validation of the safe control scheme. The safety barrier is set as
+This section focus on the safety validation of the safe control scheme.
+
+The zeroing barrier function is ($n$ is the number of states)
+$$h(x)=\sum_{i=1}^{n} w_i\left(1-\left(\frac{x_i}{A_i}\right)^2\right)$$
+where $A_i$ is the safe barrier of state $x_i$, and $w_i$ is barrier weight. The states are in the safety region if $h(x)\geq 0$.
+
+The safety barrier $A_i$ is set as
 
 ```
 x_1 cart position: [-15,15] m
@@ -60,7 +51,7 @@ x_3 pendulum angle: [-π/6,π/6] rad
 x_4 pendulum angle velocity position: [-1,1] rad/s^2
 ```
 
-and the barrier weights are `[3, 5, 3, 5]`.
+and the barrier weights $w_i$ are `[3, 5, 3, 5]`.
 
 The initial values of the states are `[0; 10; 0; 0]`.
 We first show that fix gain feedback control with control gain `K_control=[4.472; 21.750; 192.188; 158.755]` is not safe.
@@ -102,7 +93,7 @@ The following figure shows that zeroing barrier function holds above 0, which me
 ![](/figs/ZBF_cbf_sec.png)
 
 # Secure Estimation
-In order to validate the security of our proposed estimator. We design an attack on sensor 3 (angle sensor) and inject to `y_3` a random value uniformly distributed on `[-5,5]`.
+In order to validate the security of our proposed estimator. We design an attack on sensor 3 (angle sensor) and inject to $y_3$ a random value uniformly distributed on `[-π/2,π/2]`. Considering that $x_3$ is the pendulum angle, the measurement $y_3$ will be deviated severely from its original value. We will the power of this attack in the following.
 
 
 ## 1. Safe control with linear estimator
@@ -118,8 +109,10 @@ The following figures show the states and zeroing barrier function with our prop
 
 ![](/figs/States_cbf_sec_att.png)
 
+The zeroing barrier functions stays above zero despite the attack.
+
 ![](/figs/ZBF_cbf_sec_att.png)
 
-The estimation error of angle and angle velocity are smaller than linear estimator.
+The estimation error of angle and angle velocity are smaller than linear estimator, which means our estimator works well.
 
 ![](/figs/esterr_sec_att.png)
