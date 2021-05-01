@@ -26,7 +26,7 @@ barrWeights = [3, 5, 3, 5]
 x_barr = 15
 v_barr = 10
 t_barr = 3*π/18
-w_barr = 5
+w_barr = 1
 
 P = zeros(4, 4)
 P[1, 1] = -2/(x_barr^2)*barrWeights[1]
@@ -80,7 +80,11 @@ function CBFControl(X)
     qp_result = qpsolvers.cvxopt_solve_qp(qp_P,qp_q,qp_G,qp_h)
     # print("\nqp_P, qp_q, qp_G, qp_h", qp_P, qp_q, qp_G, qp_h)
     print("qp_result: ", qp_result)
-
+    if qp_result[1]>300
+        qp_result[1]=300
+    elseif qp_result[1]<-300
+        qp_result[1]=-300
+    end
     return qp_result
 end
 
@@ -115,15 +119,15 @@ C =  [1 0 0 0
 n=4
 m=size(C,1)
 
-Q = 0.0001*Matrix(1.0I,n,n)#+0.01*rand(n,n)
-R = 1*Matrix(1.0I,m,m)#+0.01*rand(m,m)
+Q = 0.1*Diagonal([1;1;0.1;0.1])
+R = Diagonal([1;1;0.1;0.1])
 
 ## Calculate discrete system Matrix
 A_dis=exp(Ts*A_lin)
-B_dis=[5.0e-3 1.25e-5 -2.6e-8 1.357e-8
-        0 5.0e-3 -1.22445e-5 1.229e-6
-        0 1.3983e-9 5.0e-3 1.249e-5
-        0 1.249e-07 2.694e-5 5.0e-3]*B_lin # Ts=0.005s
+B_dis=[5.00000000e-03  1.24989584e-05 -2.59577292e-08  1.35699487e-08;
+       0.00000000e+00  4.99937507e-03 -1.22445441e-05  1.22903344e-06;
+       0.00000000e+00  1.39829025e-09  5.00005166e-03  1.24954741e-05;
+       0.00000000e+00  1.24944328e-07  2.69400380e-05  4.99729592e-03]*B_lin # Ts=0.005s
 
 # L=[1.7 0.1
 # 0.541 -0.832
@@ -151,8 +155,8 @@ X_est=zeros(n,N)
 Xs_est=zeros(n,N)
 U=zeros(N)
 # initialization
-γ = 10
-X[:,1]=[ 0 ; 10.5 ; 0 ; 0 ]
+γ = 5
+X[:,1]=[ 0 ; 10 ; 0 ; 0 ]
 Y[:,1]=C*X[:,1]+rand(Gaussian(zeros(m),R))
 X_est[:,1]=X[:,1] # TODO: delete this orcale estimation initialization in the future
 ζ[:,1]=initialize_ζ(X[:,1])
@@ -161,25 +165,29 @@ U[1]= CBFControl(Xs_est[:,1])[1]
 
 # ATTACK
 C_attack=[0; 0; 1; 0]
-a=0*(rand(N).-0.5)
+a=π*(rand(N).-0.5)
 
 @time for k=2:N
     println("\n========================================================= time step = ", k)
     # original data
-    # w[:,k]=Ts*rand(Gaussian(zeros(n),Q)) # (第一个w没用到)
+    w[:,k-1]=Ts*rand(Gaussian(zeros(n),Q))
     v[:,k]=Ts*rand(Gaussian(zeros(m),R))
-    X[:,k]=A_dis*X[:,k-1]+B_dis*U[k-1] # now without noise w
+    X[:,k]=A_dis*X[:,k-1]+B_dis*U[k-1] + w[:,k-1]
     Y[:,k]=C*X[:,k]+v[:,k]+C_attack*a[k] #ATTACK ADDED HERE
     # calculate fix gain estimation
     X_est[:,k]=(A_dis-L*C*A_dis)*X_est[:,k-1]+B_dis*U[k-1]+L*Y[:,k]
     # calculate secure estimation
     ζ[:,k]=update_ζ( ζ[:,k-1], Y[:,k], B_dis, U[k-1] )
     println("solving LASSO at k = ", k)
-    x, μ, ν = solve_opt(ζ[:,k], γ, 0)
-    Xs_est[:,k] = T_*x
+    x, problem_status= solve_opt(ζ[:,k], γ, 0)
+    if problem_status
+        Xs_est[:,k] = T_*x
+    else
+        Xs_est[:,k] = Xs_est[:,k-1] # soluation not reliable, use last estimation
+    end
     # update control based on estimation
     println("\nsolving QP at k = ", k)
-    U[k]=FixgainControl(X[:,k])[1]
+    U[k]=CBFControl(X_est[:,k])[1]
 end
 
 
@@ -202,6 +210,8 @@ end
 # label = ["cart position" "cart velocity" "pendulum angle" "pendulum angle velocity"],
 # legend= [:topright :topright :bottomright :bottomright],
 
+
+## PLOTING
 time_axis=[0:N-1].*Ts
 plot(time_axis, X',
 title = ["cart position (m)" "cart velocity (m/s)" "pendulum angle (rad)" "pendulum angle velocity (rad/s)"],
@@ -216,24 +226,24 @@ plot!(time_axis, [-x_barr*ones(N) -v_barr*ones(N) -t_barr*ones(N) -w_barr*ones(N
 # plot!(time_axis, X[2,:], label = "cart velocity", linecolor = "blue", line = (:dot, 2))
 # plot!(time_axis, X[3,:], label = "pendulum angle", linecolor = "red", line = (:solid, 1))
 # plot!(time_axis, X[4,:], label = "pendulum angle velocity", linecolor = "red", line = (:dot, 2))
-# plot!( title="State under attack with secure estiamtion", xlabel="time / s", ylabel="value of states")
+# plot!( title="States with linear feedback controller", xlabel="time / s", ylabel="value of states")
 # plot!( title="States with CBF controller + secure estimator under attack")
-savefig("States_with_fixgain")
-# savefig("States_with_attack_and_secure_est")
+# savefig("States_with_fixgain")
+# savefig("States_cbf_lin_att")
 
 plot(time_axis, X[1,:]-X_est[1,:], label = "cart position", linecolor = "blue", line = (:solid, 1))
 plot!(time_axis, X[2,:]-X_est[2,:], label = "cart velocity", linecolor = "blue", line = (:dot, 2))
 plot!(time_axis, X[3,:]-X_est[3,:], label = "pendulum angle", linecolor = "red", line = (:solid, 1))
 plot!(time_axis, X[4,:]-X_est[4,:], label = "pendulum angle velocity", linecolor = "red", line = (:dot, 2))
-plot!( title="Estimation error of fix gain estimator under attack", xlabel="time / s", ylabel="value of estimation error")
-savefig("Estimation error of fix gain estimator under attack")
+plot!( title="Estimation error of fix gain estimator under attack", xlabel="time / s", ylabel="value of estimation error", legend=:bottomright)
+
 
 plot(time_axis, X[1,:]-Xs_est[1,:], label = "cart position", linecolor = "blue", line = (:solid, 1))
 plot!(time_axis, X[2,:]-Xs_est[2,:], label = "cart velocity", linecolor = "blue", line = (:dot, 2))
 plot!(time_axis, X[3,:]-Xs_est[3,:], label = "pendulum angle", linecolor = "red", line = (:solid, 1))
 plot!(time_axis, X[4,:]-Xs_est[4,:], label = "pendulum angle velocity", linecolor = "red", line = (:dot, 2))
-plot!( title="Estimation error of secure estimator under attack", xlabel="time / s", ylabel="value of estimation error")
-savefig("Estimation error of secure estimator under attack")
+plot!( title="Estimation error of secure estimator under attack", xlabel="time / s", ylim=[-4.0,4.0], ylabel="value of estimation error", legend=:bottomleft)
+# savefig("esterr_lin_att")
 
 #
 # plot(time_axis, X_est[1,:]-Xs_est[1,:], label = "position", linecolor = "blue", line = (:solid, 1))
@@ -245,7 +255,5 @@ h_test = (1 .- (X[1,:] / x_barr).^2) * barrWeights[1] + (1 .- (X[2,:] / v_barr).
             1 .- (X[3,:] / t_barr).^2) * barrWeights[3] + (1 .- (X[4,:] / w_barr).^2) * barrWeights[4]
 plot(time_axis,h_test, label="")
 plot!(time_axis,zeros(N), label="", linecolor = "red", line = (:dot, 2))
-# plot!(title="Zeroing barrier function with secure estimation", xlabel="time / s", ylabel="value of zeroing barrier function")
-# savefig("Zeroing barrier function secure estimation")
-plot!(title="Zeroing barrier function with linear feedback control", xlabel="time / s", ylabel="value of zeroing barrier function")
-savefig("ZBF_with_fixgain")
+plot!(title="Zeroing barrier function with CBF controller \nand secure estiamtor", xlabel="time / s", ylabel="value of zeroing barrier function")
+# savefig("ZBF_cbf_lin_att")

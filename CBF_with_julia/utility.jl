@@ -1,8 +1,8 @@
 # The used kalman parameter K is transformed from original kalman
 
 using LinearAlgebra, GaussianDistributions, Random
-using CUDA_jll
-using Convex, SCS
+# using CUDA_jll
+using Convex, SCS, MathOptInterface
 
 function preprocess(A_in, B_in, C_in, Q_in, R_in, Σ_in, MAX_TIME_IN=1000)
     global n=size(A_in,1)
@@ -245,13 +245,13 @@ global Qt = G_C*Q_in*G_C'+kron(R_in, ones(n,n))
 # @show Q
 # @show R
 # @show imag(Qt)
-global Πt=kron(Matrix(1.0I,m,m), Π)
+global Πt=kron(Matrix(1.0I,m,m), complex(Π))
 # @show Πt
 # Wt=dlyap(Πt,Qt)
 global Wt = sylvester(-inv(Πt), Matrix(Πt'), inv(Πt)*Qt)
 # Wt=(Wt+Wt')/2
 # @show Wt
-global r=rank(Wt, rtol=10^(-10))
+global r=rank(Wt, rtol=10^(-14))
 TW=eigen(Wt).vectors # T*Λ*Tinv=Wt
 L=sqrt(Diagonal(eigen(Wt).values[mn-r+1:end]))
 global D=inv(L)*inv(TW)[mn-r+1:end,:]*inv(Pt)
@@ -293,7 +293,13 @@ function  solve_opt(ζ, γ, VERBOSE=1) # TODO ignore the unsymmetric of Pt
 
     # Check the status of the problem
     # println("problem status: ", problem.status) # :Optimal, :Infeasible, :unbounded etc.
+    # @show problem.status
+    if problem.status == MathOptInterface.OPTIMAL || problem.status == MathOptInterface.ALMOST_OPTIMAL
+        problem_status=true
+    else
+        problem_status=false
+    end
     # println("optimal value: ", problem.optval)
     println("seucre estimated X: ", x.value)
-    return x.value, μ.value, ν.value
+    return x.value, problem_status
 end
